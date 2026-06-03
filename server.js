@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 const AUTH_TOKEN = process.env.REST_AUTH_TOKEN;
 
 function requireAuth(req, res, next) {
-  const token = req.headers['x-auth-token'] || req.body?.token || req.query?.token;
+  const token = req.headers['x-auth-token'];
   if (!AUTH_TOKEN || token !== AUTH_TOKEN) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
