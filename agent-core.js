@@ -1,6 +1,6 @@
 /**
  * agent-core.js
- * Claude-powered agent loop for Slack read operations
+ * Claude-powered agent loop for Slack operations
  */
 
 require('dotenv').config();
@@ -17,9 +17,9 @@ async function initSlack() {
   await slack.initialize();
 }
 
-const SYSTEM_PROMPT = `You are a Slack assistant for an Account Manager / Customer Experience professional at a voice AI company. You have read-only access to their Slack workspace.
+const SYSTEM_PROMPT = `You are a Slack assistant for an Account Manager / Customer Experience professional at a voice AI company. You have read and send access to their Slack workspace.
 
-You help them stay on top of internal communications without having to switch over to Slack. You can read channels, search messages, find conversations about specific topics or people, and summarize what's been discussed.
+You help them stay on top of internal communications without having to switch over to Slack. You can read channels, search messages, find conversations about specific topics or people, summarize what's been discussed, and send messages.
 
 TOOLS:
 - list_channels: See all available channels
@@ -28,6 +28,7 @@ TOOLS:
 - search_messages: Search across the workspace for a keyword, topic, or person's name
 - list_users: See who is in the workspace
 - get_user_info: Look up a specific person
+- send_message: Send a message to a Slack channel
 
 RESPONSE STYLE:
 - Concise and direct. Lead with the answer.
@@ -92,6 +93,18 @@ const TOOLS = [
         name: { type: 'string', description: 'Display name or real name of the person' }
       },
       required: ['name']
+    }
+  },
+  {
+    name: 'send_message',
+    description: 'Send a message to a Slack channel.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        channel: { type: 'string', description: 'Channel name (e.g. "general") or ID' },
+        text: { type: 'string', description: 'Message text to send' }
+      },
+      required: ['channel', 'text']
     }
   }
 ];
@@ -165,6 +178,12 @@ async function executeTool(name, input) {
       return `Name: ${user.name}\nDisplay: ${user.display_name || 'N/A'}\nID: ${user.id}`;
     }
 
+    case 'send_message': {
+      const channelId = await resolveChannel(input.channel);
+      const result = await slack.sendMessage(channelId, input.text);
+      return `Message sent to #${input.channel} (ts: ${result.ts})`;
+    }
+
     default:
       return `Unknown tool: ${name}`;
   }
@@ -207,4 +226,4 @@ async function runAgent(question, history = []) {
   return { response: 'Reached maximum steps. Please try a simpler request.', history: messages };
 }
 
-module.exports = { initSlack, runAgent };
+module.exports = { initSlack, runAgent, getSlack: () => slack };

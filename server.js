@@ -5,7 +5,7 @@
 
 require('dotenv').config();
 const express = require('express');
-const { initSlack, runAgent } = require('./agent-core');
+const { initSlack, runAgent, getSlack } = require('./agent-core');
 
 const app = express();
 app.use(express.json());
@@ -34,6 +34,27 @@ app.post('/query', requireAuth, async (req, res) => {
     res.json({ response });
   } catch (err) {
     console.error('[ERROR]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Direct send endpoint — bypasses the LLM agent loop for automated callers
+app.post('/send', requireAuth, async (req, res) => {
+  const { channel, text } = req.body;
+  if (!channel || !text) return res.status(400).json({ error: 'channel and text are required' });
+
+  try {
+    const slack = getSlack();
+    let channelId = channel;
+    if (!channel.startsWith('C')) {
+      const found = await slack.findChannel(channel);
+      if (!found) return res.status(404).json({ error: `Channel not found: ${channel}` });
+      channelId = found.id;
+    }
+    const result = await slack.sendMessage(channelId, text);
+    res.json({ status: 'sent', channel: result.channel, ts: result.ts });
+  } catch (err) {
+    console.error('[SEND ERROR]', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -1,6 +1,6 @@
 /**
  * slack-client.js
- * Handles all Slack API communication (read-only)
+ * Handles all Slack API communication
  */
 
 require('dotenv').config();
@@ -100,6 +100,16 @@ class SlackClient {
       u.name?.toLowerCase().includes(normalized) ||
       u.display_name?.toLowerCase().includes(normalized)
     ) || null;
+  }
+
+  // Send a message to a channel
+  async sendMessage(channelId, text) {
+    const { data } = await this.http.post('/chat.postMessage', {
+      channel: channelId,
+      text
+    });
+    if (!data.ok) throw new Error(`chat.postMessage failed: ${data.error}`);
+    return { channel: data.channel, ts: data.ts };
   }
 
   // Format a Slack timestamp to a readable date/time
