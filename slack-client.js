@@ -102,14 +102,20 @@ class SlackClient {
     ) || null;
   }
 
-  // Send a message to a channel
-  async sendMessage(channelId, text) {
-    const { data } = await this.http.post('/chat.postMessage', {
-      channel: channelId,
-      text
-    });
+  // Send a message to a channel (optionally in a thread)
+  async sendMessage(channelId, text, threadTs = null) {
+    const payload = { channel: channelId, text };
+    if (threadTs) payload.thread_ts = threadTs;
+    const { data } = await this.http.post('/chat.postMessage', payload);
     if (!data.ok) throw new Error(`chat.postMessage failed: ${data.error}`);
     return { channel: data.channel, ts: data.ts };
+  }
+
+  // Pin a message in a channel
+  async pinMessage(channelId, ts) {
+    const { data } = await this.http.post('/pins.add', { channel: channelId, timestamp: ts });
+    if (!data.ok && data.error !== 'already_pinned') throw new Error(`pins.add failed: ${data.error}`);
+    return data.ok;
   }
 
   // Format a Slack timestamp to a readable date/time

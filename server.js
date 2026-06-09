@@ -39,8 +39,9 @@ app.post('/query', requireAuth, async (req, res) => {
 });
 
 // Direct send endpoint — bypasses the LLM agent loop for automated callers
+// Supports optional thread_ts for thread replies and pin for pinning the message
 app.post('/send', requireAuth, async (req, res) => {
-  const { channel, text } = req.body;
+  const { channel, text, thread_ts, pin } = req.body;
   if (!channel || !text) return res.status(400).json({ error: 'channel and text are required' });
 
   try {
@@ -51,7 +52,10 @@ app.post('/send', requireAuth, async (req, res) => {
       if (!found) return res.status(404).json({ error: `Channel not found: ${channel}` });
       channelId = found.id;
     }
-    const result = await slack.sendMessage(channelId, text);
+    const result = await slack.sendMessage(channelId, text, thread_ts || null);
+    if (pin) {
+      try { await slack.pinMessage(channelId, result.ts); } catch (e) { console.warn('[PIN]', e.message); }
+    }
     res.json({ status: 'sent', channel: result.channel, ts: result.ts });
   } catch (err) {
     console.error('[SEND ERROR]', err.message);
